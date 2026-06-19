@@ -842,6 +842,90 @@ input[type="range"] {
   width: 16px;
 }
 
+.tech-section {
+  padding: 96px 5vw;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.tech-heading {
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto 54px;
+}
+
+.tech-heading h2 {
+  font-size: clamp(30px, 3.2vw, 46px);
+  line-height: 1.12;
+  margin-bottom: 18px;
+  color: var(--forest-900);
+}
+
+.tech-heading p {
+  color: var(--muted);
+  line-height: 1.75;
+  font-size: 15px;
+}
+
+.tech-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 34px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.tech-card {
+  padding: 32px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fbfcfb;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.tech-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(11, 36, 27, 0.06);
+}
+
+.tech-card .card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.tech-card h3 {
+  margin: 0;
+  font-size: 17px;
+  font-family: "Manrope", sans-serif;
+  color: var(--forest-900);
+}
+
+.advantage-card svg {
+  color: #256342;
+}
+
+.disadvantage-card svg {
+  color: var(--red-700);
+}
+
+.tech-card ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+}
+
+.tech-card li {
+  margin-bottom: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.tech-card li:last-child {
+  margin-bottom: 0;
+}
+
 .action-section {
   padding: 96px 5vw;
   display: grid;
@@ -939,8 +1023,13 @@ footer p {
   .section-heading,
   .detector-grid,
   .knowledge-section,
+  .tech-grid,
   .action-section {
     grid-template-columns: 1fr;
+  }
+
+  .tech-section {
+    padding: 68px 5vw;
   }
 
   .section-heading {
@@ -1039,8 +1128,13 @@ footer p {
   }
 
   .knowledge-copy,
+  .tech-section,
   .action-section {
     padding: 48px 20px;
+  }
+
+  .tech-card {
+    padding: 24px;
   }
 
   .action-image {
