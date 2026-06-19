@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Alat skrining awal Lumpy Skin Disease pada sapi menggunakan model YOLOv8."
+    />
+    <meta name="theme-color" content="#12372a" />
+    <title>LSD Sapi | Skrining Visual</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#deteksi" aria-label="LSD Sapi, kembali ke alat deteksi">
+        <span class="brand-mark" aria-hidden="true">LS</span>
+        <span>
+          <strong>LSD Sapi</strong>
+          <small>Skrining visual ternak</small>
+        </span>
+      </a>
+
+      <nav class="main-nav" aria-label="Navigasi utama">
+        <a href="#deteksi">Deteksi</a>
+        <a href="#tentang">Tentang LSD</a>
+        <a href="#tindakan">Tindakan</a>
+      </nav>
+
+      <div class="api-state" id="api-state" role="status">
+        <span class="status-dot"></span>
+        <span id="api-state-text">Memeriksa model</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="detector-section" id="deteksi">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Deteksi berbasis YOLOv8</p>
+            <h1>Periksa kondisi kulit sapi dari satu foto.</h1>
+          </div>
+          <p class="heading-copy">
+            Unggah gambar yang terang dan menampilkan permukaan tubuh sapi dengan jelas.
+            Hasil dipakai sebagai skrining awal, bukan diagnosis akhir.
+          </p>
+        </div>
+
+        <div class="detector-grid">
+          <section class="workspace-panel" aria-labelledby="upload-title">
+            <div class="panel-head">
+              <div>
+                <span class="step-number">01</span>
+                <h2 id="upload-title">Masukkan gambar</h2>
+              </div>
+              <button class="icon-button is-hidden" id="reset-button" type="button" title="Hapus gambar">
+                <i data-lucide="trash-2" aria-hidden="true"></i>
+                <span class="sr-only">Hapus gambar</span>
+              </button>
+            </div>
+
+            <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+            <button class="drop-zone" id="drop-zone" type="button">
+              <span class="drop-icon"><i data-lucide="image-up" aria-hidden="true"></i></span>
+              <strong>Pilih atau jatuhkan foto sapi</strong>
+              <span>JPG, PNG, atau WebP hingga 10 MB</span>
+            </button>
+
+            <div class="preview-wrap is-hidden" id="preview-wrap">
+              <img id="preview-image" alt="Pratinjau gambar sapi yang akan dianalisis" />
+              <div class="scan-line" aria-hidden="true"></div>
+              <div class="preview-meta">
+                <span id="file-name"></span>
+                <span id="file-size"></span>
+              </div>
+            </div>
+
+            <div class="controls-row">
+              <label for="confidence-range">
+                <span>Ambang confidence</span>
+                <strong id="confidence-value">25%</strong>
+              </label>
+              <input
+                id="confidence-range"
+                type="range"
+                min="10"
+                max="80"
+                value="25"
+                step="5"
+              />
+            </div>
+
+            <button class="primary-button" id="analyze-button" type="button" disabled>
+              <i data-lucide="scan-search" aria-hidden="true"></i>
+              <span>Analisis gambar</span>
+            </button>
+            <p class="error-message is-hidden" id="error-message" role="alert"></p>
+          </section>
+
+          <section class="result-panel" aria-labelledby="result-title">
+            <div class="panel-head">
+              <div>
+                <span class="step-number">02</span>
+                <h2 id="result-title">Hasil pemeriksaan</h2>
+              </div>
+              <span class="result-status status-neutral" id="result-status">Menunggu foto</span>
+            </div>
+
+            <div class="empty-result" id="empty-result">
+              <i data-lucide="focus" aria-hidden="true"></i>
+              <strong>Belum ada hasil</strong>
+              <p>Gambar beranotasi dan rincian deteksi akan tampil di sini.</p>
+            </div>
+
+            <div class="loading-result is-hidden" id="loading-result" aria-live="polite">
+              <div class="loader-grid" aria-hidden="true"></div>
+              <strong>Model sedang memeriksa gambar</strong>
+              <p>Proses pertama dapat lebih lama saat server baru aktif.</p>
+            </div>
+
+            <div class="result-content is-hidden" id="result-content">
+              <div class="result-image-wrap">
+                <img id="result-image" alt="Gambar hasil deteksi dengan bounding box" />
+              </div>
+              <div class="result-summary">
+                <div>
+                  <span>Objek terdeteksi</span>
+                  <strong id="detection-count">0</strong>
+                </div>
+                <div>
+                  <span>Confidence tertinggi</span>
+                  <strong id="highest-confidence">0%</strong>
+                </div>
+              </div>
+              <div class="detection-list" id="detection-list"></div>
+              <p class="medical-note">
+                <i data-lucide="triangle-alert" aria-hidden="true"></i>
+                Konfirmasi hasil mencurigakan kepada dokter hewan atau petugas kesehatan hewan.
+              </p>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="knowledge-section" id="tentang">
+        <div class="cow-stage" aria-label="Animasi karakter sapi untuk skrining kesehatan ternak">
+          <div class="scan-orbit orbit-one" aria-hidden="true"></div>
+          <div class="scan-orbit orbit-two" aria-hidden="true"></div>
+          <span class="floating-tag tag-scan">
+            <i data-lucide="scan-line" aria-hidden="true"></i>
+            Skrining visual
+          </span>
+          <span class="floating-tag tag-ready">
+            <span class="tag-dot"></span>
+            Model siap
+          </span>
+          <img
+            class="cow-mascot"
+            src="assets/cow-mascot.png"
+            alt="Karakter animasi sapi cokelat putih"
+          />
+          <div class="stage-shadow" aria-hidden="true"></div>
+        </div>
+
+        <div class="knowledge-copy">
+          <p class="eyebrow">Kenali penyakitnya</p>
+          <h2>Lumpy Skin Disease menyerang kulit dan kondisi tubuh sapi.</h2>
+          <p>
+            LSD adalah penyakit infeksi virus yang terutama menyerang sapi dan kerbau.
+            Tanda yang dapat muncul meliputi demam, benjolan tegas pada kulit, pembesaran
+            kelenjar getah bening, pembengkakan, penurunan produksi susu, dan penurunan kondisi tubuh.
+          </p>
+          <div class="fact-grid">
+            <article>
+              <i data-lucide="bug" aria-hidden="true"></i>
+              <h3>Penularan utama</h3>
+              <p>Terutama melalui lalat penggigit, nyamuk, dan caplak yang mengisap darah.</p>
+            </article>
+            <article>
+              <i data-lucide="shield-check" aria-hidden="true"></i>
+              <h3>Bukan zoonosis</h3>
+              <p>LSD tidak menginfeksi manusia, tetapi dapat merugikan kesehatan dan usaha ternak.</p>
+            </article>
+          </div>
+          <a
+            class="source-link"
+            href="https://www.woah.org/en/disease/lumpy-skin-disease/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Baca rujukan WOAH
+            <i data-lucide="arrow-up-right" aria-hidden="true"></i>
+          </a>
+        </div>
+      </section>
+
+      <section class="action-section" id="tindakan">
+        <div class="action-heading">
+          <p class="eyebrow">Jika hasil mencurigakan</p>
+          <h2>Tindak cepat, jangan panik.</h2>
+          <p>
+            Deteksi dini perlu diikuti pemeriksaan lapangan. Hindari memindahkan ternak sebelum
+            mendapat arahan petugas berwenang.
+          </p>
+        </div>
+        <ol class="action-list">
+          <li>
+            <span>01</span>
+            <div>
+              <h3>Pisahkan sementara</h3>
+              <p>Jauhkan sapi yang dicurigai dari ternak lain dan batasi lalu lintas kandang.</p>
+            </div>
+          </li>
+          <li>
+            <span>02</span>
+            <div>
+              <h3>Dokumentasikan</h3>
+              <p>Catat suhu, kondisi makan, lokasi benjolan, dan waktu gejala mulai terlihat.</p>
+            </div>
+          </li>
+          <li>
+            <span>03</span>
+            <div>
+              <h3>Hubungi petugas</h3>
+              <p>Mintakan pemeriksaan dokter hewan atau dinas peternakan untuk konfirmasi.</p>
+            </div>
+          </li>
+        </ol>
+      </section>
+    </main>
+
+    <footer>
+      <p><strong>LSD Sapi</strong> · Praktikum deteksi objek YOLOv8</p>
+      <p>Alat bantu skrining, bukan perangkat diagnosis medis veteriner.</p>
+    </footer>
+  </body>
+</html>
