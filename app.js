@@ -1,6 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
   // Elements
-  const apiUrlInput = document.getElementById("api-url-input");
   const apiState = document.getElementById("api-state");
   const apiStateText = document.getElementById("api-state-text");
   
@@ -29,30 +28,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const recommendationText = document.getElementById("recommendation-text");
 
   let selectedFile = null;
-  let checkApiTimeout = null;
 
-  // Local Storage for API URL
-  const STORAGE_KEY = "cattle_api_url";
-  const DEFAULT_LOCAL_API = "http://localhost:7860";
-  
-  // Initialize API URL from storage or default
-  let currentApiUrl = localStorage.getItem(STORAGE_KEY) || "";
-  apiUrlInput.value = currentApiUrl;
+  // Hardcoded Backend API URL
+  const BACKEND_API_URL = "https://kypli-lsd-sapi-api.hf.space";
 
   // Ping Backend to check connection
   function checkBackendStatus() {
-    const url = apiUrlInput.value.trim().replace(/\/$/, "");
-    if (!url) {
-      apiState.className = "api-state";
-      apiStateText.textContent = "API URL Kosong";
-      analyzeButton.disabled = true;
-      return;
-    }
-
     apiState.className = "api-state";
     apiStateText.textContent = "Menghubungkan...";
 
-    fetch(`${url}/health`)
+    fetch(`${BACKEND_API_URL}/health`)
       .then(response => {
         if (!response.ok) throw new Error("HTTP error " + response.status);
         return response.json();
@@ -69,7 +54,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .catch(err => {
         console.warn("Health check error:", err);
         // Fallback check ke root URL
-        fetch(url)
+        fetch(BACKEND_API_URL)
           .then(res => {
             if (res.ok) {
               apiState.className = "api-state is-online";
@@ -87,16 +72,6 @@ document.addEventListener("DOMContentLoaded", () => {
           });
       });
   }
-
-  // Update ping status when user types API URL (with debounce)
-  apiUrlInput.addEventListener("input", () => {
-    clearTimeout(checkApiTimeout);
-    checkApiTimeout = setTimeout(() => {
-      const url = apiUrlInput.value.trim();
-      localStorage.setItem(STORAGE_KEY, url);
-      checkBackendStatus();
-    }, 800);
-  });
 
   // Run initial status check
   checkBackendStatus();
@@ -211,12 +186,6 @@ document.addEventListener("DOMContentLoaded", () => {
   analyzeButton.addEventListener("click", () => {
     if (!selectedFile) return;
     
-    const url = apiUrlInput.value.trim().replace(/\/$/, "");
-    if (!url) {
-      showError("Harap masukkan URL API backend terlebih dahulu.");
-      return;
-    }
-
     // UI state: Loading
     resultStatus.textContent = "Menganalisis";
     resultStatus.className = "result-status status-loading";
@@ -232,7 +201,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const formData = new FormData();
     formData.append("file", selectedFile);
 
-    fetch(`${url}/predict`, {
+    fetch(`${BACKEND_API_URL}/predict`, {
       method: "POST",
       body: formData
     })
