@@ -1,45 +1,72 @@
-# LSD Sapi Frontend
+# CattleCare AI - Skrining Penyakit Sapi
 
-Frontend statis untuk skrining visual Lumpy Skin Disease pada sapi. Aplikasi
-mengirim gambar ke backend FastAPI/YOLOv8 di Hugging Face Spaces dan menampilkan
-bounding box, kelas, serta confidence hasil deteksi.
+Aplikasi web frontend statis responsif berestetika premium untuk klasifikasi penyakit sapi berdasarkan citra visual. Sistem ini dapat membedakan tiga kelas kondisi kesehatan ternak: **Sehat (Healthy)**, **Lumpy Skin Disease (LSD)**, dan **Penyakit Mulut dan Kuku (PMK/FMD)** menggunakan model transfer learning **MobileNetV3Large**.
 
-## Backend
+Web ini terhubung secara dinamis ke backend API FastAPI yang dideploy di Hugging Face Spaces.
 
-`https://kypli-lsd-sapi-api.hf.space`
+## Fitur Utama
 
-## Teknologi Deteksi (YOLOv8)
+- **Penyaringan Gambar Cerdas:** Drag-and-drop foto sapi, memverifikasi format (JPG, PNG, WebP) dan membatasi ukuran (maks. 10 MB).
+- **Animasi Pemindaian Visual:** Menampilkan garis pemindai dinamis (*scanning effect*) selama proses inferensi berlangsung.
+- **Konfigurasi API Dinamis:** Input URL backend API di bagian header yang disimpan secara otomatis di penyimpanan browser (*local storage*).
+- **Visualisasi Hasil Interaktif:** Menampilkan diagnosis utama disertai bar probabilitas untuk masing-masing dari ketiga kelas secara persentase real-time.
+- **Protokol Tindakan:** Menyediakan rekomendasi mitigasi penanganan ternak yang disesuaikan secara otomatis berdasarkan hasil diagnosis tertinggi.
 
-Proyek ini menggunakan model deteksi objek **YOLOv8 (You Only Look Once version 8)** dari Ultralytics untuk mendeteksi gejala klinis Lumpy Skin Disease (LSD) pada sapi secara visual.
+---
 
-### Mengapa YOLOv8?
-Model ini dipilih karena kinerjanya yang **sangat cepat dan ringan**. Proses inferensi (deteksi objek) berlangsung dalam hitungan milidetik, menjadikannya sangat efisien untuk digunakan sebagai alat skrining awal langsung di lapangan tanpa membutuhkan spesifikasi server yang tinggi atau GPU mahal.
+## Dataset & Arsitektur Model
 
-### Kelebihan & Kekurangan
-* **Kelebihan**: 
-  - **Sangat Cepat**: Inferensi instan cocok untuk aplikasi skrining real-time.
-  - **Hemat Sumber Daya**: Konsumsi memori RAM dan CPU sangat rendah.
-  - **Presisi Lokalisasi**: Pendekatan *anchor-free* meningkatkan akurasi pendeteksian letak benjolan kulit.
-* **Kekurangan**:
-  - **Sensitif Gambar**: Akurasi menurun jika foto sapi buram atau kurang pencahayaan.
-  - **Objek Sangat Kecil**: Sulit mendeteksi benjolan gejala awal yang ukurannya terlampau kecil dari jarak jauh.
-  - **Risiko False Positive**: Noda lumpur kering atau luka goresan biasa kadang diidentifikasi salah sebagai gejala LSD.
+### Dataset Pelatihan
+Sumber dataset berasal dari [Cattle Diseases Datasets di Kaggle](https://www.kaggle.com/datasets/devang03mgr/cattle-diseases-datasets) dengan komposisi:
+- **Healthy (Sehat):** 1.291 gambar
+- **Lumpy Skin Disease (LSD):** 1.207 gambar
+- **Foot and Mouth Disease (PMK/FMD):** 746 gambar
+- **Total:** 3.244 gambar
 
-## Menjalankan lokal
+Pembagian dataset (*data split*) diatur dengan rasio Train 70%, Valid 15%, dan Test 15% berdasarkan kelompok gambar sumber (menggunakan penanda `.rf.`) guna mencegah kebocoran data (*data leakage*).
 
-Buka `index.html` langsung atau jalankan server statis:
+### Arsitektur MobileNetV3Large
+Model dibangun berbasis `MobileNetV3Large` yang dilatih dalam dua tahap:
+1. **Tahap Pertama (Training Head):** Melatih kepala klasifikasi dengan learning rate `1e-3` menggunakan teknik class weight seimbang untuk menangani ketimpangan dataset.
+2. **Tahap Kedua (Fine-tuning):** Melatih 40 layer terakhir base model secara selektif dengan learning rate rendah `1e-5` guna mempertahankan fitur dasar *ImageNet* sekaligus mengoptimalkan akurasi khusus pada gejala penyakit kulit ternak.
 
-```bash
-npx serve .
-```
+### Metrik Hasil Pelatihan
+Berdasarkan data resmi `training_history.csv`:
+- **Akurasi Validasi Tertinggi:** **91.77%** (pada Epoch 20)
+- **Validation Loss Terbaik:** **0.2602** (pada Epoch 14)
+- **Akurasi Pelatihan Tertinggi:** **92.86%** (pada Epoch 14)
+- Metrik penunjang model stabil dikendalikan oleh fungsi Early Stopping dengan kesabaran (*patience*) 6 epoch dan ReduceLROnPlateau.
 
-## Deploy ke Vercel
+---
 
-Import repository ini di Vercel. Proyek tidak membutuhkan build command karena
-seluruh file merupakan HTML, CSS, dan JavaScript statis.
+## Panduan Menjalankan Lokal
 
-## Catatan
+Anda dapat menjalankan antarmuka web langsung di komputer lokal:
+1. Buka berkas `index.html` langsung pada peramban web (browser), atau
+2. Jalankan server lokal berbasis Node.js jika ingin melakukan pengetesan port:
+   ```bash
+   npx serve .
+   ```
 
-Informasi penyakit diringkas dari [World Organisation for Animal Health](https://www.woah.org/en/disease/lumpy-skin-disease/).
-Hasil model ditujukan untuk praktikum dan skrining awal, bukan pengganti
-diagnosis dokter hewan.
+---
+
+## Cara Deploy ke Vercel
+
+1. Buat repositori baru di akun GitHub Anda dan dorong (*push*) isi folder `Lsd_Sapi` ini ke repositori tersebut.
+2. Masuk ke dasbor [Vercel](https://vercel.com).
+3. Klik **Add New** > **Project**, lalu impor repositori GitHub Anda.
+4. Vercel akan mendeteksi pengaturan proyek statis secara otomatis. Klik **Deploy**.
+5. Salin URL deploy dari Vercel untuk diakses secara publik.
+
+---
+
+## Integrasi dengan Backend API
+
+Guna mengoperasikan pemindaian secara online:
+1. Unggah berkas model backend Anda ke Hugging Face Spaces (detail panduan di repositori backend).
+2. Salin URL Space Anda (misalnya `https://kypli-lsd-sapi-api.hf.space`).
+3. Tempelkan URL tersebut ke kolom input di bilah atas aplikasi web CattleCare AI.
+4. Apabila status berubah menjadi **Model Siap**, Anda bisa langsung mengunggah foto sapi dan melakukan uji klinis awal.
+
+---
+**Catatan Penting:** Proyek ini dikembangkan untuk kebutuhan akademis, praktikum, dan skrining awal visual. Hasil diagnosis kecerdasan buatan (AI) ini bukanlah pengganti pemeriksaan resmi dari dokter hewan maupun laboratorium dinas kesehatan hewan berwenang.

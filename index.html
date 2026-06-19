@@ -5,287 +5,343 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Alat skrining awal Lumpy Skin Disease pada sapi menggunakan model YOLOv8."
+      content="Alat skrining awal penyakit sapi berbasis AI untuk klasifikasi Healthy, Lumpy Skin Disease (LSD), dan Penyakit Mulut dan Kuku (PMK/FMD)."
     />
-    <meta name="theme-color" content="#12372a" />
-    <title>LSD Sapi | Skrining Visual</title>
+    <meta name="theme-color" content="#4e3629" />
+    <title>CattleCare AI | Skrining Penyakit Sapi</title>
+    
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
       rel="stylesheet"
     />
+    
+    <!-- CSS Stylesheet -->
     <link rel="stylesheet" href="styles.css" />
+    
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+    
+    <!-- JS Logic -->
     <script src="app.js" defer></script>
   </head>
   <body>
+    <!-- Top Bar -->
     <header class="topbar">
-      <a class="brand" href="#deteksi" aria-label="LSD Sapi, kembali ke alat deteksi">
-        <img class="brand-logo" src="assets/logo.png" alt="Logo LSD Sapi" aria-hidden="true" />
+      <a class="brand" href="#deteksi" aria-label="CattleCare AI Beranda">
+        <!-- Inline Beautiful SVG Cattle Icon -->
+        <svg class="brand-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M16 11c0 2.2-1.8 4-4 4s-4-1.8-4-4 1.8-4 4-4 4 1.8 4 4z"/>
+          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"/>
+          <path d="M12 15v5"/>
+          <path d="M8 12H3"/>
+          <path d="M21 12h-5"/>
+        </svg>
         <span>
-          <strong>LSD Sapi</strong>
-          <small>Skrining visual ternak</small>
+          <strong>CattleCare AI</strong>
+          <small>Klasifikasi Penyakit Sapi</small>
         </span>
       </a>
 
-      <nav class="main-nav" aria-label="Navigasi utama">
-        <a href="#deteksi">Deteksi</a>
-        <a href="#tentang">Tentang LSD</a>
-        <a href="#teknologi">Teknologi Model</a>
-        <a href="#tindakan">Tindakan</a>
+      <nav class="main-nav" aria-label="Navigasi Utama">
+        <a href="#deteksi">Skrining</a>
+        <a href="#penyakit-info">Info Penyakit</a>
+        <a href="#metrik-model">Model AI</a>
+        <a href="#panduan">Tindakan</a>
       </nav>
 
-      <div class="api-state" id="api-state" role="status">
-        <span class="status-dot"></span>
-        <span id="api-state-text">Memeriksa model</span>
+      <div class="api-setup-group">
+        <!-- API URL Configuration -->
+        <div class="api-url-wrapper">
+          <label for="api-url-input" class="sr-only">URL API Backend</label>
+          <input 
+            type="url" 
+            id="api-url-input" 
+            placeholder="Masukkan URL API Backend..." 
+            title="Tempel URL API Hugging Face Space Anda di sini"
+          />
+        </div>
+        <div class="api-state" id="api-state" role="status">
+          <span class="status-dot"></span>
+          <span id="api-state-text">Menghubungkan</span>
+        </div>
       </div>
     </header>
 
     <main>
+      <!-- Hero / Detector Section -->
       <section class="detector-section" id="deteksi">
         <div class="section-heading">
-          <div>
-            <p class="eyebrow">Deteksi berbasis YOLOv8</p>
-            <h1>Periksa kondisi kulit sapi dari satu foto.</h1>
-          </div>
+          <p class="eyebrow">Sistem Skrining MobileNetV3</p>
+          <h1>Analisis Gejala Penyakit Sapi Secara Visual</h1>
           <p class="heading-copy">
-            Unggah gambar yang terang dan menampilkan permukaan tubuh sapi dengan jelas.
-            Hasil dipakai sebagai skrining awal, bukan diagnosis akhir.
+            Unggah foto sapi yang fokus pada area tubuh atau mulut/kuku. Sistem kami akan 
+            menganalisis tanda-tanda klinis awal untuk mendeteksi penyakit **LSD**, **PMK**, atau kondisi **Sehat**.
           </p>
         </div>
 
         <div class="detector-grid">
+          <!-- Step 1: Input Panel -->
           <section class="workspace-panel" aria-labelledby="upload-title">
             <div class="panel-head">
               <div>
                 <span class="step-number">01</span>
-                <h2 id="upload-title">Masukkan gambar</h2>
+                <h2 id="upload-title">Unggah Gambar</h2>
               </div>
-              <button class="icon-button is-hidden" id="reset-button" type="button" title="Hapus gambar">
+              <button class="icon-button is-hidden" id="reset-button" type="button" title="Hapus Gambar">
                 <i data-lucide="trash-2" aria-hidden="true"></i>
-                <span class="sr-only">Hapus gambar</span>
+                <span class="sr-only">Hapus Gambar</span>
               </button>
             </div>
 
+            <!-- Image Drop Zone -->
             <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
             <button class="drop-zone" id="drop-zone" type="button">
-              <span class="drop-icon"><i data-lucide="image-up" aria-hidden="true"></i></span>
-              <strong>Pilih atau jatuhkan foto sapi</strong>
-              <span>JPG, PNG, atau WebP hingga 10 MB</span>
+              <span class="drop-icon"><i data-lucide="cloud-upload" aria-hidden="true"></i></span>
+              <strong>Seret & jatuhkan foto sapi</strong>
+              <span>atau klik untuk memilih dari galeri</span>
+              <small class="format-info">Mendukung JPG, PNG, atau WebP (Maks. 10 MB)</small>
             </button>
 
+            <!-- Image Preview Area -->
             <div class="preview-wrap is-hidden" id="preview-wrap">
-              <img id="preview-image" alt="Pratinjau gambar sapi yang akan dianalisis" />
-              <div class="scan-line" aria-hidden="true"></div>
+              <img id="preview-image" alt="Pratinjau gambar sapi" />
+              <div class="scan-line" id="scan-line" aria-hidden="true"></div>
               <div class="preview-meta">
-                <span id="file-name"></span>
-                <span id="file-size"></span>
+                <span id="file-name">file_sapi.jpg</span>
+                <span id="file-size">1.2 MB</span>
               </div>
             </div>
 
-            <div class="controls-row">
-              <label for="confidence-range">
-                <span>Ambang confidence</span>
-                <strong id="confidence-value">25%</strong>
-              </label>
-              <input
-                id="confidence-range"
-                type="range"
-                min="10"
-                max="80"
-                value="25"
-                step="5"
-              />
-            </div>
-
+            <!-- Action Button -->
             <button class="primary-button" id="analyze-button" type="button" disabled>
-              <i data-lucide="scan-search" aria-hidden="true"></i>
-              <span>Analisis gambar</span>
+              <i data-lucide="brain-circuit" aria-hidden="true"></i>
+              <span>Mulai Analisis</span>
             </button>
             <p class="error-message is-hidden" id="error-message" role="alert"></p>
           </section>
 
+          <!-- Step 2: Results Panel -->
           <section class="result-panel" aria-labelledby="result-title">
             <div class="panel-head">
               <div>
                 <span class="step-number">02</span>
-                <h2 id="result-title">Hasil pemeriksaan</h2>
+                <h2 id="result-title">Hasil Pemeriksaan</h2>
               </div>
-              <span class="result-status status-neutral" id="result-status">Menunggu foto</span>
+              <span class="result-status status-neutral" id="result-status">Menunggu Input</span>
             </div>
 
+            <!-- State: Empty Result -->
             <div class="empty-result" id="empty-result">
-              <i data-lucide="focus" aria-hidden="true"></i>
-              <strong>Belum ada hasil</strong>
-              <p>Gambar beranotasi dan rincian deteksi akan tampil di sini.</p>
+              <i data-lucide="clipboard-list" aria-hidden="true"></i>
+              <strong>Belum ada analisis</strong>
+              <p>Pilih foto sapi dan tekan tombol "Mulai Analisis" untuk melihat probabilitas kondisi kesehatan.</p>
             </div>
 
+            <!-- State: Loading Result -->
             <div class="loading-result is-hidden" id="loading-result" aria-live="polite">
-              <div class="loader-grid" aria-hidden="true"></div>
-              <strong>Model sedang memeriksa gambar</strong>
-              <p>Proses pertama dapat lebih lama saat server baru aktif.</p>
+              <div class="spinner" aria-hidden="true"></div>
+              <strong>Menganalisis Gambar...</strong>
+              <p>Model sedang memproses pixel dan memprediksi probabilitas klinis.</p>
             </div>
 
+            <!-- State: Success Result -->
             <div class="result-content is-hidden" id="result-content">
-              <div class="result-image-wrap">
-                <img id="result-image" alt="Gambar hasil deteksi dengan bounding box" />
-              </div>
-              <div class="result-summary">
-                <div>
-                  <span>Objek terdeteksi</span>
-                  <strong id="detection-count">0</strong>
+              <!-- Diagnosis Badge -->
+              <div class="diagnosis-card" id="diagnosis-card">
+                <div class="diagnosis-icon-wrap" id="diagnosis-icon-wrap">
+                  <i id="diagnosis-icon" data-lucide="activity" aria-hidden="true"></i>
                 </div>
-                <div>
-                  <span>Confidence tertinggi</span>
-                  <strong id="highest-confidence">0%</strong>
+                <div class="diagnosis-info">
+                  <span class="diagnosis-eyebrow">Diagnosis Terkuat</span>
+                  <h3 class="diagnosis-title" id="diagnosis-title">Lumpy Skin Disease</h3>
+                  <p class="diagnosis-conf" id="diagnosis-confidence">Confidence: 98.7%</p>
                 </div>
               </div>
-              <div class="detection-list" id="detection-list"></div>
+
+              <!-- Probability Bars -->
+              <div class="probabilities-section">
+                <h4>Probabilitas Detail Kelas</h4>
+                <div class="prob-list" id="prob-list">
+                  <!-- Will be generated dynamically -->
+                </div>
+              </div>
+
+              <!-- Recommendations based on prediction -->
+              <div class="recommendation-card" id="recommendation-card">
+                <div class="rec-header">
+                  <i data-lucide="lightbulb" aria-hidden="true"></i>
+                  <h5>Rekomendasi Tindakan</h5>
+                </div>
+                <p id="recommendation-text">Rekomendasi akan muncul di sini sesuai dengan hasil diagnosa dominan.</p>
+              </div>
+
               <p class="medical-note">
-                <i data-lucide="triangle-alert" aria-hidden="true"></i>
-                Konfirmasi hasil mencurigakan kepada dokter hewan atau petugas kesehatan hewan.
+                <i data-lucide="info" aria-hidden="true"></i>
+                <span>Sistem ini dirancang untuk skrining awal berbasis AI akademis. Hubungi dokter hewan/dinas peternakan untuk diagnosis medis legal.</span>
               </p>
             </div>
           </section>
         </div>
       </section>
 
-      <section class="knowledge-section" id="tentang">
-        <div class="cow-stage" aria-label="Animasi karakter sapi untuk skrining kesehatan ternak">
-          <div class="scan-orbit orbit-one" aria-hidden="true"></div>
-          <div class="scan-orbit orbit-two" aria-hidden="true"></div>
-          <span class="floating-tag tag-scan">
-            <i data-lucide="scan-line" aria-hidden="true"></i>
-            Skrining visual
-          </span>
-          <span class="floating-tag tag-ready">
-            <span class="tag-dot"></span>
-            Model siap
-          </span>
-          <img
-            class="cow-mascot"
-            src="assets/cow-mascot.png"
-            alt="Karakter animasi sapi cokelat putih"
-          />
-          <div class="stage-shadow" aria-hidden="true"></div>
+      <!-- Cattle Diseases Information Section -->
+      <section class="knowledge-section" id="penyakit-info">
+        <div class="section-header-centered">
+          <p class="eyebrow">Panduan Referensi Ternak</p>
+          <h2>Mengenal 3 Kategori Klasifikasi</h2>
+          <p>Pelajari karakteristik fisik dan klinis dari masing-masing kondisi sapi pada dataset.</p>
         </div>
 
-        <div class="knowledge-copy">
-          <p class="eyebrow">Kenali penyakitnya</p>
-          <h2>Lumpy Skin Disease menyerang kulit dan kondisi tubuh sapi.</h2>
-          <p>
-            LSD adalah penyakit infeksi virus yang terutama menyerang sapi dan kerbau.
-            Tanda yang dapat muncul meliputi demam, benjolan tegas pada kulit, pembesaran
-            kelenjar getah bening, pembengkakan, penurunan produksi susu, dan penurunan kondisi tubuh.
-          </p>
-          <div class="fact-grid">
-            <article>
-              <i data-lucide="bug" aria-hidden="true"></i>
-              <h3>Penularan utama</h3>
-              <p>Terutama melalui lalat penggigit, nyamuk, dan caplak yang mengisap darah.</p>
-            </article>
-            <article>
+        <div class="knowledge-grid">
+          <!-- Healthy -->
+          <article class="info-card border-healthy">
+            <div class="info-icon text-healthy">
               <i data-lucide="shield-check" aria-hidden="true"></i>
-              <h3>Bukan zoonosis</h3>
-              <p>LSD tidak menginfeksi manusia, tetapi dapat merugikan kesehatan dan usaha ternak.</p>
-            </article>
-          </div>
-          <a
-            class="source-link"
-            href="https://www.woah.org/en/disease/lumpy-skin-disease/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Baca rujukan WOAH
-            <i data-lucide="arrow-up-right" aria-hidden="true"></i>
-          </a>
-        </div>
-      </section>
-
-      <section class="tech-section" id="teknologi">
-        <div class="tech-heading">
-          <p class="eyebrow">Teknologi Kecerdasan Buatan</p>
-          <h2>Mengenal YOLOv8n (Nano) dalam Deteksi LSD Sapi</h2>
-          <p>
-            Sistem skrining visual ini didukung oleh model <strong>YOLOv8n (YOLOv8 Nano)</strong> yang dikembangkan oleh Ultralytics.
-            Model varian **Nano** ini dipilih secara spesifik karena kinerjanya yang <strong>sangat cepat dan ringan</strong>, memungkinkan inferensi
-            real-time langsung di lapangan tanpa membutuhkan spesifikasi perangkat keras (hardware) yang tinggi.
-          </p>
-        </div>
-        <div class="tech-grid">
-          <article class="tech-card advantage-card">
-            <div class="card-title-row">
-              <i data-lucide="zap" aria-hidden="true"></i>
-              <h3>Kelebihan YOLOv8n (Nano)</h3>
             </div>
+            <h3>Sapi Sehat (Healthy)</h3>
+            <p>
+              Kulit bersih tanpa benjolan besar atau keropeng basah. Sapi terlihat aktif, responsif, 
+              mata bersinar, cermin hidung basah/bersih, serta memiliki nafsu makan dan minum yang stabil.
+            </p>
             <ul>
-              <li><strong>Sangat Cepat & Ringan:</strong> Mampu memproses gambar dalam hitungan milidetik dengan ukuran model minimalis.</li>
-              <li><strong>Akurasi Lokalisasi Tinggi:</strong> Menggunakan pendekatan *anchor-free* yang presisi dalam mendeteksi batas-batas benjolan kulit.</li>
-              <li><strong>Optimal untuk Mobile & Web:</strong> Struktur model yang ringkas mempermudah deployment ke server web standar.</li>
-              <li><strong>Efisiensi Sumber Daya:</strong> Hemat penggunaan RAM dan CPU saat melakukan pengenalan objek.</li>
+              <li>Kulit terawat bebas lesi signifikan</li>
+              <li>Postur tubuh tegap dan pergerakan lincah</li>
+              <li>Nafsu makan dan memamah biak normal</li>
             </ul>
           </article>
-          <article class="tech-card disadvantage-card">
-            <div class="card-title-row">
-              <i data-lucide="triangle-alert" aria-hidden="true"></i>
-              <h3>Kekurangan YOLOv8n (Nano)</h3>
+
+          <!-- Lumpy Skin Disease (LSD) -->
+          <article class="info-card border-lsd">
+            <div class="info-icon text-lsd">
+              <i data-lucide="shapes" aria-hidden="true"></i>
             </div>
+            <h3>Lumpy Skin Disease (LSD)</h3>
+            <p>
+              Penyakit cacar kulit sapi yang disebabkan oleh virus cacar. Gejala khas berupa benjolan nodul 
+              keras pada kulit berukuran 2-5 cm di seluruh tubuh, demam tinggi, lesu, dan penurunan produksi susu.
+            </p>
             <ul>
-              <li><strong>Ketergantungan Kualitas Gambar:</strong> Performa menurun jika gambar buram, kurang pencahayaan, atau sudut pengambilan foto kurang jelas.</li>
-              <li><strong>Objek Sangat Kecil:</strong> Mengalami bias deteksi pada tanda benjolan awal yang ukurannya terlampau kecil atau jarak sapi terlalu jauh.</li>
-              <li><strong>Kemungkinan False Positive:</strong> Lumpur kering, luka goresan biasa, atau bayangan gelap pada tubuh sapi terkadang teridentifikasi salah sebagai gejala LSD.</li>
+              <li>Nodul kulit menonjol dan keras</li>
+              <li>Dapat timbul luka melepuh/keropeng</li>
+              <li>Ditularkan melalui lalat penggigit & nyamuk</li>
+            </ul>
+          </article>
+
+          <!-- Foot & Mouth Disease (PMK/FMD) -->
+          <article class="info-card border-pmk">
+            <div class="info-icon text-pmk">
+              <i data-lucide="bomb" aria-hidden="true"></i>
+            </div>
+            <h3>Penyakit Mulut & Kuku (PMK/FMD)</h3>
+            <p>
+              Penyakit menular akibat virus genus Aphthovirus. Gejala khas mencakup lesi melepuh/sariawan 
+              pada bibir, gusi, lidah, serta luka sela kuku kuku yang mengakibatkan sapi pincang dan air liur berlebih.
+            </p>
+            <ul>
+              <li>Luka sariawan/erosi mukosa mulut</li>
+              <li>Pincang akibat peradangan sela kuku</li>
+              <li>Hipersalivasi (air liur berlebih berbusa)</li>
             </ul>
           </article>
         </div>
       </section>
 
-      <section class="action-section" id="tindakan">
-        <div class="action-heading">
-          <p class="eyebrow">Jika hasil mencurigakan</p>
-          <h2>Tindak cepat, jangan panik.</h2>
-          <p>
-            Deteksi dini perlu diikuti pemeriksaan lapangan. Hindari memindahkan ternak sebelum
-            mendapat arahan petugas berwenang.
-          </p>
-          <div class="action-image-wrap">
-            <img
-              class="action-image"
-              src="assets/vet-cattle-check.png"
-              alt="Dokter hewan memeriksa kesehatan kulit sapi di peternakan"
-              loading="lazy"
-            />
+      <!-- Technical Architecture & Dataset Info -->
+      <section class="tech-section" id="metrik-model">
+        <div class="tech-inner">
+          <div class="tech-copy">
+            <p class="eyebrow">Spesifikasi Pembelajaran Mesin</p>
+            <h2>Arsitektur Model MobileNetV3Large</h2>
+            <p>
+              Menggunakan jaringan saraf konvolusi hemat daya **MobileNetV3Large** dengan bobot awal dari *ImageNet*. 
+              Arsitektur ini didesain khusus untuk berjalan cepat di perangkat mobile/CPU dengan konsumsi memori minim, 
+              namun tetap mempertahankan akurasi tinggi.
+            </p>
+            <div class="dataset-stats">
+              <div class="stat-item">
+                <span class="stat-number">3.244</span>
+                <span class="stat-label">Total Gambar Dataset</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-number">1.291</span>
+                <span class="stat-label">Gambar Sapi Sehat</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-number">1.207</span>
+                <span class="stat-label">Kasus LSD</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-number">746</span>
+                <span class="stat-label">Kasus PMK/FMD</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="model-features-card">
+            <h4>Alur Kerja Model Training</h4>
+            <ol class="workflow-steps">
+              <li>
+                <strong>Resize with Padding:</strong> Gambar diubah ke ukuran 224x224 tanpa merusak rasio aspek gambar.
+              </li>
+              <li>
+                <strong>Augmentasi Ringan:</strong> Flip, rotasi, zoom, dan kontras acak untuk memperkaya data latih.
+              </li>
+              <li>
+                <strong>Class Weights:</strong> Mengatasi ketidakseimbangan dataset (terutama kelas PMK yang lebih sedikit).
+              </li>
+              <li>
+                <strong>Fine-tuning Terarah:</strong> Melatih classifier head terlebih dahulu, dilanjutkan dengan fine-tuning 40 layer terakhir base model.
+              </li>
+            </ol>
           </div>
         </div>
-        <ol class="action-list">
-          <li>
-            <span>01</span>
+      </section>
+
+      <!-- Action Protocol Section -->
+      <section class="action-section" id="panduan">
+        <div class="section-heading">
+          <p class="eyebrow">Prosedur Kedaruratan Ternak</p>
+          <h2>Langkah Penanganan Saat Sapi Sakit</h2>
+          <p>Jika hasil penyaringan visual mendeteksi penyakit LSD atau PMK, segera lakukan mitigasi berikut:</p>
+        </div>
+
+        <div class="protocol-grid">
+          <div class="protocol-card">
+            <span class="protocol-num">01</span>
             <div>
-              <h3>Pisahkan sementara</h3>
-              <p>Jauhkan sapi yang dicurigai dari ternak lain dan batasi lalu lintas kandang.</p>
+              <h3>Isolasi Cepat (Karantina)</h3>
+              <p>Pisahkan sapi bergejala ke kandang isolasi khusus yang berjarak aman dari ternak sehat. Jangan mencampur wadah pakan dan air minum.</p>
             </div>
-          </li>
-          <li>
-            <span>02</span>
+          </div>
+
+          <div class="protocol-card">
+            <span class="protocol-num">02</span>
             <div>
-              <h3>Dokumentasikan</h3>
-              <p>Catat suhu, kondisi makan, lokasi benjolan, dan waktu gejala mulai terlihat.</p>
+              <h3>Pengendalian Vektor & Bio-sekuriti</h3>
+              <p>Untuk LSD, semprot kandang dengan insektisida ramah hewan guna membasmi lalat dan nyamuk penular. Untuk PMK, semprotkan disinfektan ke area kuku dan kandang.</p>
             </div>
-          </li>
-          <li>
-            <span>03</span>
+          </div>
+
+          <div class="protocol-card">
+            <span class="protocol-num">03</span>
             <div>
-              <h3>Hubungi petugas</h3>
-              <p>Mintakan pemeriksaan dokter hewan atau dinas peternakan untuk konfirmasi.</p>
+              <h3>Laporkan Dinas Terkait</h3>
+              <p>Hubungi dokter hewan mandiri atau laporkan ke petugas Dinas Peternakan dan Kesehatan Hewan setempat untuk pemeriksaan laboratorium resmi.</p>
             </div>
-          </li>
-        </ol>
+          </div>
+        </div>
       </section>
     </main>
 
+    <!-- Footer -->
     <footer>
-      <p><strong>LSD Sapi</strong> · Praktikum deteksi objek YOLOv8</p>
-      <p>Alat bantu skrining, bukan perangkat diagnosis medis veteriner.</p>
+      <div class="footer-content">
+        <p><strong>CattleCare AI</strong> · Program Praktikum Deteksi & Klasifikasi Ternak</p>
+        <p class="footer-sub">Dikembangkan menggunakan MobileNetV3Large & FastAPI. Alat bantu deteksi visual awal, bukan surat keterangan kesehatan veteriner resmi.</p>
+      </div>
     </footer>
   </body>
 </html>

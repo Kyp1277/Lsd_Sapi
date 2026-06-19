@@ -1,259 +1,347 @@
-const API_URL = "https://kypli-lsd-sapi-api.hf.space";
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+document.addEventListener("DOMContentLoaded", () => {
+  // Elements
+  const apiUrlInput = document.getElementById("api-url-input");
+  const apiState = document.getElementById("api-state");
+  const apiStateText = document.getElementById("api-state-text");
+  
+  const fileInput = document.getElementById("file-input");
+  const dropZone = document.getElementById("drop-zone");
+  const previewWrap = document.getElementById("preview-wrap");
+  const previewImage = document.getElementById("preview-image");
+  const fileNameDisplay = document.getElementById("file-name");
+  const fileSizeDisplay = document.getElementById("file-size");
+  const resetButton = document.getElementById("reset-button");
+  const analyzeButton = document.getElementById("analyze-button");
+  const errorMessage = document.getElementById("error-message");
+  
+  const resultStatus = document.getElementById("result-status");
+  const emptyResult = document.getElementById("empty-result");
+  const loadingResult = document.getElementById("loading-result");
+  const resultContent = document.getElementById("result-content");
+  
+  const diagnosisCard = document.getElementById("diagnosis-card");
+  const diagnosisTitle = document.getElementById("diagnosis-title");
+  const diagnosisConfidence = document.getElementById("diagnosis-confidence");
+  const diagnosisIcon = document.getElementById("diagnosis-icon");
+  const diagnosisIconWrap = document.getElementById("diagnosis-icon-wrap");
+  const probList = document.getElementById("prob-list");
+  const recommendationCard = document.getElementById("recommendation-card");
+  const recommendationText = document.getElementById("recommendation-text");
 
-const elements = {
-  apiState: document.querySelector("#api-state"),
-  apiStateText: document.querySelector("#api-state-text"),
-  fileInput: document.querySelector("#file-input"),
-  dropZone: document.querySelector("#drop-zone"),
-  previewWrap: document.querySelector("#preview-wrap"),
-  previewImage: document.querySelector("#preview-image"),
-  fileName: document.querySelector("#file-name"),
-  fileSize: document.querySelector("#file-size"),
-  resetButton: document.querySelector("#reset-button"),
-  confidenceRange: document.querySelector("#confidence-range"),
-  confidenceValue: document.querySelector("#confidence-value"),
-  analyzeButton: document.querySelector("#analyze-button"),
-  errorMessage: document.querySelector("#error-message"),
-  emptyResult: document.querySelector("#empty-result"),
-  loadingResult: document.querySelector("#loading-result"),
-  resultContent: document.querySelector("#result-content"),
-  resultStatus: document.querySelector("#result-status"),
-  resultImage: document.querySelector("#result-image"),
-  detectionCount: document.querySelector("#detection-count"),
-  highestConfidence: document.querySelector("#highest-confidence"),
-  detectionList: document.querySelector("#detection-list"),
-};
+  let selectedFile = null;
+  let checkApiTimeout = null;
 
-let selectedFile = null;
-let previewUrl = null;
+  // Local Storage for API URL
+  const STORAGE_KEY = "cattle_api_url";
+  const DEFAULT_LOCAL_API = "http://localhost:7860";
+  
+  // Initialize API URL from storage or default
+  let currentApiUrl = localStorage.getItem(STORAGE_KEY) || "";
+  apiUrlInput.value = currentApiUrl;
 
-function refreshIcons() {
+  // Ping Backend to check connection
+  function checkBackendStatus() {
+    const url = apiUrlInput.value.trim().replace(/\/$/, "");
+    if (!url) {
+      apiState.className = "api-state";
+      apiStateText.textContent = "API URL Kosong";
+      analyzeButton.disabled = true;
+      return;
+    }
+
+    apiState.className = "api-state";
+    apiStateText.textContent = "Menghubungkan...";
+
+    fetch(`${url}/health`)
+      .then(response => {
+        if (!response.ok) throw new Error("HTTP error " + response.status);
+        return response.json();
+      })
+      .then(data => {
+        apiState.className = "api-state is-online";
+        if (data.model_loaded) {
+          apiStateText.textContent = "Model Siap";
+        } else {
+          apiStateText.textContent = "Model Belum Diunggah";
+        }
+        updateAnalyzeButtonState();
+      })
+      .catch(err => {
+        console.warn("Health check error:", err);
+        // Fallback check ke root URL
+        fetch(url)
+          .then(res => {
+            if (res.ok) {
+              apiState.className = "api-state is-online";
+              apiStateText.textContent = "Online (No Model)";
+            } else {
+              apiState.className = "api-state is-offline";
+              apiStateText.textContent = "Offline (Error)";
+            }
+            updateAnalyzeButtonState();
+          })
+          .catch(() => {
+            apiState.className = "api-state is-offline";
+            apiStateText.textContent = "Offline";
+            updateAnalyzeButtonState();
+          });
+      });
+  }
+
+  // Update ping status when user types API URL (with debounce)
+  apiUrlInput.addEventListener("input", () => {
+    clearTimeout(checkApiTimeout);
+    checkApiTimeout = setTimeout(() => {
+      const url = apiUrlInput.value.trim();
+      localStorage.setItem(STORAGE_KEY, url);
+      checkBackendStatus();
+    }, 800);
+  });
+
+  // Run initial status check
+  checkBackendStatus();
+
+  // Helper to enable/disable button
+  function updateAnalyzeButtonState() {
+    const isOnline = apiState.classList.contains("is-online");
+    analyzeButton.disabled = !(selectedFile && isOnline);
+  }
+
+  // File Selection and Drag & Drop
+  dropZone.addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", (e) => {
+    if (e.target.files.length > 0) {
+      handleFile(e.target.files[0]);
+    }
+  });
+
+  dropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = "var(--primary)";
+    dropZone.style.background = "var(--surface-raised)";
+  });
+
+  dropZone.addEventListener("dragleave", () => {
+    dropZone.style.borderColor = "var(--line)";
+    dropZone.style.background = "var(--canvas)";
+  });
+
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = "var(--line)";
+    dropZone.style.background = "var(--canvas)";
+    
+    if (e.dataTransfer.files.length > 0) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  function handleFile(file) {
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      showError("Format berkas harus JPEG, PNG, atau WebP.");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      showError("Ukuran berkas melebihi batas 10 MB.");
+      return;
+    }
+
+    selectedFile = file;
+    errorMessage.classList.add("is-hidden");
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      previewImage.src = e.target.result;
+      fileNameDisplay.textContent = file.name;
+      fileSizeDisplay.textContent = formatBytes(file.size);
+      
+      dropZone.classList.add("is-hidden");
+      previewWrap.classList.remove("is-hidden");
+      resetButton.classList.remove("is-hidden");
+      
+      updateAnalyzeButtonState();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // Format File Size
+  function formatBytes(bytes, decimals = 1) {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ["Bytes", "KB", "MB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+  }
+
+  // Reset/Clear Input
+  resetButton.addEventListener("click", () => {
+    selectedFile = null;
+    fileInput.value = "";
+    
+    dropZone.classList.remove("is-hidden");
+    previewWrap.classList.add("is-hidden");
+    resetButton.classList.add("is-hidden");
+    errorMessage.classList.add("is-hidden");
+    
+    // Reset results
+    resultStatus.textContent = "Menunggu Input";
+    resultStatus.className = "result-status status-neutral";
+    emptyResult.classList.remove("is-hidden");
+    loadingResult.classList.add("is-hidden");
+    resultContent.classList.add("is-hidden");
+    
+    // Remove scanning effect
+    previewWrap.classList.remove("scanning");
+    
+    updateAnalyzeButtonState();
+  });
+
+  // Show local UI error
+  function showError(msg) {
+    errorMessage.textContent = msg;
+    errorMessage.classList.remove("is-hidden");
+  }
+
+  // Make prediction request
+  analyzeButton.addEventListener("click", () => {
+    if (!selectedFile) return;
+    
+    const url = apiUrlInput.value.trim().replace(/\/$/, "");
+    if (!url) {
+      showError("Harap masukkan URL API backend terlebih dahulu.");
+      return;
+    }
+
+    // UI state: Loading
+    resultStatus.textContent = "Menganalisis";
+    resultStatus.className = "result-status status-loading";
+    emptyResult.classList.add("is-hidden");
+    loadingResult.classList.remove("is-hidden");
+    resultContent.classList.add("is-hidden");
+    errorMessage.classList.add("is-hidden");
+    
+    // Add scanning effect to preview
+    previewWrap.classList.add("scanning");
+    analyzeButton.disabled = true;
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    fetch(`${url}/predict`, {
+      method: "POST",
+      body: formData
+    })
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(errData => {
+            throw new Error(errData.detail?.message || errData.detail || "Terjadi kesalahan server");
+          }).catch(() => {
+            throw new Error(`Kesalahan Server (${response.status})`);
+          });
+        }
+        return response.json();
+      })
+      .then(data => {
+        // UI state: Success
+        resultStatus.textContent = "Selesai";
+        resultStatus.className = "result-status status-success";
+        loadingResult.classList.add("is-hidden");
+        resultContent.classList.remove("is-hidden");
+        
+        displayResults(data);
+      })
+      .catch(err => {
+        console.error("Prediction failed:", err);
+        
+        // Reset UI from loading to error
+        resultStatus.textContent = "Gagal";
+        resultStatus.className = "result-status status-neutral";
+        loadingResult.classList.add("is-hidden");
+        emptyResult.classList.remove("is-hidden");
+        
+        showError(err.message || "Gagal menghubungkan ke backend API. Pastikan CORS diizinkan dan backend aktif.");
+      })
+      .finally(() => {
+        previewWrap.classList.remove("scanning");
+        updateAnalyzeButtonState();
+      });
+  });
+
+  // Render prediction to UI
+  function displayResults(data) {
+    const topPred = data.prediction;
+    const classId = topPred.label; // 'healthy', 'lumpy_skin_disease', 'foot_and_mouth_disease'
+    const confidencePct = (topPred.confidence * 100).toFixed(1);
+
+    // 1. Setup Diagnosis Card
+    diagnosisCard.className = "diagnosis-card"; // Reset
+    diagnosisTitle.textContent = topPred.name;
+    diagnosisConfidence.textContent = `Tingkat Kepercayaan: ${confidencePct}%`;
+
+    // Dynamic icon and styles
+    if (classId === "healthy") {
+      diagnosisCard.classList.add("is-healthy");
+      diagnosisIcon.setAttribute("data-lucide", "shield-check");
+      diagnosisIconWrap.style.color = "var(--healthy)";
+    } else if (classId === "lumpy_skin_disease") {
+      diagnosisCard.classList.add("is-lsd");
+      diagnosisIcon.setAttribute("data-lucide", "shapes");
+      diagnosisIconWrap.style.color = "var(--lsd)";
+    } else if (classId === "foot_and_mouth_disease") {
+      diagnosisCard.classList.add("is-pmk");
+      diagnosisIcon.setAttribute("data-lucide", "bomb");
+      diagnosisIconWrap.style.color = "var(--pmk)";
+    }
+    
+    // Re-render Lucide icons
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+
+    // 2. Render probabilities list
+    probList.innerHTML = "";
+    data.top_predictions.forEach(pred => {
+      const predPct = (pred.confidence * 100).toFixed(1);
+      const isHealthy = pred.label === "healthy";
+      const isLsd = pred.label === "lumpy_skin_disease";
+      const barClass = isHealthy ? "healthy" : (isLsd ? "lsd" : "pmk");
+
+      const probItem = document.createElement("div");
+      probItem.className = "prob-item";
+      probItem.innerHTML = `
+        <div class="prob-meta">
+          <span class="prob-label">${pred.name}</span>
+          <span class="prob-val">${predPct}%</span>
+        </div>
+        <div class="prob-track">
+          <div class="prob-bar ${barClass}" style="width: ${predPct}%"></div>
+        </div>
+      `;
+      probList.appendChild(probItem);
+    });
+
+    // 3. Setup Recommendation & Disclaimer
+    recommendationCard.className = "recommendation-card"; // Reset
+    
+    if (classId === "healthy") {
+      recommendationCard.classList.add("healthy");
+      recommendationText.textContent = "Sapi Anda terindikasi Sehat. Pertahankan kebersihan sanitasi kandang, berikan pakan bernutrisi seimbang secara berkala, dan patuhi jadwal vaksinasi berkala untuk kekebalan kelompok.";
+    } else if (classId === "lumpy_skin_disease") {
+      recommendationCard.classList.add("lsd");
+      recommendationText.textContent = "Gejala Lumpy Skin Disease (LSD) terdeteksi. Segera pisahkan (karantina) sapi yang terinfeksi untuk menghindari penularan, kendalikan populasi serangga (nyamuk/lalat) sebagai vektor virus di area peternakan, dan laporkan kepada dokter hewan setempat untuk obat simtomatik.";
+    } else if (classId === "foot_and_mouth_disease") {
+      recommendationCard.classList.add("pmk");
+      recommendationText.textContent = "Gejala Penyakit Mulut dan Kuku (PMK) terdeteksi. Batasi ketat mobilitas manusia dan kendaraan masuk/keluar kandang (biosekuriti ketat), semprot sela-sela kuku sapi dan kandang dengan disinfektan asam/basa (seperti asam sitrat atau soda abu), serta segera hubungi pihak dinas peternakan setempat.";
+    }
+  }
+
+  // Auto-initialize Lucide Icons on load
   if (window.lucide) {
     window.lucide.createIcons();
   }
-}
-
-function formatFileSize(bytes) {
-  if (bytes < 1024 * 1024) {
-    return `${Math.round(bytes / 1024)} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function showError(message) {
-  elements.errorMessage.textContent = message;
-  elements.errorMessage.classList.remove("is-hidden");
-}
-
-function clearError() {
-  elements.errorMessage.textContent = "";
-  elements.errorMessage.classList.add("is-hidden");
-}
-
-function setResultStatus(text, variant = "neutral") {
-  elements.resultStatus.textContent = text;
-  elements.resultStatus.className = `result-status status-${variant}`;
-}
-
-function validateFile(file) {
-  if (!file) {
-    return "Pilih gambar terlebih dahulu.";
-  }
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return "Format gambar harus JPG, PNG, atau WebP.";
-  }
-  if (file.size > MAX_FILE_SIZE) {
-    return "Ukuran gambar maksimal 10 MB.";
-  }
-  return null;
-}
-
-function setSelectedFile(file) {
-  const validationMessage = validateFile(file);
-  if (validationMessage) {
-    showError(validationMessage);
-    return;
-  }
-
-  clearError();
-  selectedFile = file;
-  if (previewUrl) {
-    URL.revokeObjectURL(previewUrl);
-  }
-  previewUrl = URL.createObjectURL(file);
-  elements.previewImage.src = previewUrl;
-  elements.fileName.textContent = file.name;
-  elements.fileSize.textContent = formatFileSize(file.size);
-  elements.dropZone.classList.add("is-hidden");
-  elements.previewWrap.classList.remove("is-hidden");
-  elements.resetButton.classList.remove("is-hidden");
-  elements.analyzeButton.disabled = false;
-}
-
-function resetDetector() {
-  selectedFile = null;
-  elements.fileInput.value = "";
-  if (previewUrl) {
-    URL.revokeObjectURL(previewUrl);
-    previewUrl = null;
-  }
-  elements.previewImage.removeAttribute("src");
-  elements.previewWrap.classList.add("is-hidden");
-  elements.previewWrap.classList.remove("is-scanning");
-  elements.dropZone.classList.remove("is-hidden");
-  elements.resetButton.classList.add("is-hidden");
-  elements.analyzeButton.disabled = true;
-  elements.resultContent.classList.add("is-hidden");
-  elements.loadingResult.classList.add("is-hidden");
-  elements.emptyResult.classList.remove("is-hidden");
-  setResultStatus("Menunggu foto");
-  clearError();
-}
-
-function renderDetections(data) {
-  const detections = Array.isArray(data.detections) ? data.detections : [];
-  const hasLsd = detections.some((item) => String(item.label).toLowerCase().includes("lsd"));
-  const highest = detections.reduce(
-    (current, item) => Math.max(current, Number(item.confidence) || 0),
-    0,
-  );
-
-  elements.resultImage.src = `data:${data.annotated_image_mime || "image/jpeg"};base64,${data.annotated_image}`;
-  elements.detectionCount.textContent = String(data.detection_count ?? detections.length);
-  elements.highestConfidence.textContent = `${Math.round(highest * 100)}%`;
-  elements.detectionList.replaceChildren();
-
-  if (hasLsd) {
-    setResultStatus("Indikasi LSD terdeteksi", "alert");
-  } else if (detections.length > 0) {
-    setResultStatus("Tidak ada indikasi LSD", "safe");
-  } else {
-    setResultStatus("Objek tidak dikenali", "neutral");
-  }
-
-  if (detections.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "error-message";
-    empty.textContent = "Model belum menemukan objek sapi pada gambar ini. Coba foto yang lebih jelas.";
-    elements.detectionList.append(empty);
-  } else {
-    detections.forEach((item) => {
-      const row = document.createElement("div");
-      const isLsd = String(item.label).toLowerCase().includes("lsd");
-      row.className = `detection-item${isLsd ? " is-lsd" : ""}`;
-
-      const swatch = document.createElement("span");
-      swatch.className = "class-swatch";
-
-      const label = document.createElement("strong");
-      label.textContent = item.label || `Kelas ${item.class_id}`;
-
-      const confidence = document.createElement("span");
-      confidence.textContent = `${Math.round((Number(item.confidence) || 0) * 100)}%`;
-
-      row.append(swatch, label, confidence);
-      elements.detectionList.append(row);
-    });
-  }
-
-  elements.loadingResult.classList.add("is-hidden");
-  elements.resultContent.classList.remove("is-hidden");
-  refreshIcons();
-}
-
-async function analyzeImage() {
-  const validationMessage = validateFile(selectedFile);
-  if (validationMessage) {
-    showError(validationMessage);
-    return;
-  }
-
-  clearError();
-  elements.analyzeButton.disabled = true;
-  elements.emptyResult.classList.add("is-hidden");
-  elements.resultContent.classList.add("is-hidden");
-  elements.loadingResult.classList.remove("is-hidden");
-  elements.previewWrap.classList.add("is-scanning");
-  setResultStatus("Menganalisis");
-
-  const formData = new FormData();
-  formData.append("file", selectedFile);
-  const threshold = Number(elements.confidenceRange.value) / 100;
-
-  try {
-    const response = await fetch(
-      `${API_URL}/predict?confidence=${threshold}&include_image=true`,
-      { method: "POST", body: formData },
-    );
-
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(data.detail || `Server mengembalikan status ${response.status}.`);
-    }
-    if (!data.annotated_image) {
-      throw new Error("Server tidak mengirim gambar hasil deteksi.");
-    }
-
-    renderDetections(data);
-  } catch (error) {
-    elements.loadingResult.classList.add("is-hidden");
-    elements.emptyResult.classList.remove("is-hidden");
-    setResultStatus("Analisis gagal", "alert");
-    showError(
-      `${error.message || "Tidak dapat menghubungi server."} Coba lagi setelah beberapa saat.`,
-    );
-  } finally {
-    elements.previewWrap.classList.remove("is-scanning");
-    elements.analyzeButton.disabled = !selectedFile;
-  }
-}
-
-async function checkApiHealth() {
-  try {
-    const response = await fetch(`${API_URL}/health`);
-    if (!response.ok) {
-      throw new Error("API tidak siap");
-    }
-    elements.apiState.classList.add("is-online");
-    elements.apiState.classList.remove("is-offline");
-    elements.apiStateText.textContent = "Model siap";
-  } catch {
-    elements.apiState.classList.add("is-offline");
-    elements.apiState.classList.remove("is-online");
-    elements.apiStateText.textContent = "Model sedang bangun";
-  }
-}
-
-elements.dropZone.addEventListener("click", () => elements.fileInput.click());
-elements.fileInput.addEventListener("change", (event) => setSelectedFile(event.target.files[0]));
-elements.resetButton.addEventListener("click", resetDetector);
-elements.analyzeButton.addEventListener("click", analyzeImage);
-
-elements.confidenceRange.addEventListener("input", () => {
-  elements.confidenceValue.textContent = `${elements.confidenceRange.value}%`;
-});
-
-["dragenter", "dragover"].forEach((eventName) => {
-  elements.dropZone.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    elements.dropZone.classList.add("is-dragging");
-  });
-});
-
-["dragleave", "drop"].forEach((eventName) => {
-  elements.dropZone.addEventListener(eventName, (event) => {
-    event.preventDefault();
-    elements.dropZone.classList.remove("is-dragging");
-  });
-});
-
-elements.dropZone.addEventListener("drop", (event) => {
-  setSelectedFile(event.dataTransfer.files[0]);
-});
-
-window.addEventListener("DOMContentLoaded", () => {
-  refreshIcons();
-  checkApiHealth();
 });
