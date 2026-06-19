@@ -88,16 +88,10 @@ img {
   text-decoration: none;
 }
 
-.brand-mark {
+.brand-logo {
   width: 38px;
   height: 38px;
-  display: grid;
-  place-items: center;
-  color: var(--forest-950);
-  background: #f0c75e;
-  border-radius: 6px;
-  font-family: "Manrope", sans-serif;
-  font-weight: 800;
+  object-fit: contain;
 }
 
 .brand strong,
